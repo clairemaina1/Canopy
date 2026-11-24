@@ -924,8 +924,8 @@ h1 span { color: #dbc47e; }
 .writing-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .writing-options .mantine-TextInput-label { color: #c9ba7e; font-size: 7px; font-weight: 800; letter-spacing: .5px; }
 .writing-options .mantine-TextInput-input { border-color: #58674d; background: #0e1a13; color: #e4e9e1; font-size: 9px; }
-.writing-voice { display: grid; gap: 6px; color: #c9ba7e; font-size: 7px; font-weight: 800; letter-spacing: .5px; }
-.writing-voice select { min-width: 0; padding: 8px; border: 1px solid #58674d; border-radius: 6px; background: #0e1a13; color: #e4e9e1; font-size: 9px; }
+.writing-length { display: grid; grid-column: 1 / -1; gap: 6px; color: #c9ba7e; font-size: 7px; font-weight: 800; letter-spacing: .5px; }
+.writing-length select { min-width: 0; padding: 8px; border: 1px solid #58674d; border-radius: 6px; background: #0e1a13; color: #e4e9e1; font-size: 9px; }
 .writing-generate { justify-self: start; }
 .writing-empty { display: grid; min-height: 470px; align-content: center; justify-items: center; padding: 25px; border: 1px dashed #58674d; border-radius: 8px; background: #101d15; text-align: center; }
 .writing-empty > span { color: #d0bd7d; font-size: 24px; }

@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Button, Textarea, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
-type Voice = 'YEARNING' | 'REFLECTIVE' | 'CONVERSATIONAL' | 'ESSAYISTIC';
+type ArticleLength = 'REFLECTION' | 'ESSAY' | 'GUIDE';
+
+const ARTICLE_LENGTHS: Record<ArticleLength, { min: number; max: number }> = {
+  REFLECTION: { min: 500, max: 800 },
+  ESSAY: { min: 800, max: 1200 },
+  GUIDE: { min: 1200, max: 1800 },
+};
 
 function splitThoughts(raw: string) {
   const seen = new Set<string>();
@@ -27,53 +33,38 @@ function articleWordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
-function buildArticle(thoughts: string[], title: string, throughline: string, scene: string, longing: string, voice: Voice) {
-  const articleTitle = title.trim() || titleFromThought(throughline || thoughts[0]);
-  const openingScene = scene.trim() || thoughts[0];
-  const bodyThoughts = scene.trim() ? thoughts : thoughts.slice(1);
-  const paragraphCount = Math.min(4, Math.max(1, Math.ceil(bodyThoughts.length / 3)));
-  const paragraphSize = Math.ceil(bodyThoughts.length / paragraphCount);
-  const paragraphs = Array.from({ length: paragraphCount }, (_, index) =>
-    bodyThoughts.slice(index * paragraphSize, (index + 1) * paragraphSize).join(' '),
-  ).filter(Boolean);
-  const endings: Record<Exclude<Voice, 'YEARNING'>, string> = {
-    REFLECTIVE: 'I am still working out what this want asks of me. I can name it more clearly now.',
-    CONVERSATIONAL: 'I do not have an answer yet. I just know I needed to say it plainly.',
-    ESSAYISTIC: 'The question remains open; I will not pretend the wanting has become an answer.',
-  };
-  const closing = voice === 'YEARNING' ? longing.trim() : endings[voice];
+function buildArticle(rawDraft: string, title: string, throughline: string, scene: string, closingThought: string) {
+  const firstThought = splitThoughts(rawDraft)[0];
+  const articleTitle = title.trim() || titleFromThought(throughline || firstThought);
 
   return [
     `# ${articleTitle}`,
     throughline.trim() ? `*${throughline.trim()}*` : '',
-    '',
-    openingScene,
-    '',
-    ...paragraphs,
-    '',
-    closing,
+    scene.trim(),
+    rawDraft.trim(),
+    closingThought.trim(),
   ].filter(Boolean).join('\n\n').trim();
 }
 
 export default function WritingStudio() {
   const [thoughtDump, setThoughtDump] = useState('');
   const [scene, setScene] = useState('');
-  const [longing, setLonging] = useState('');
+  const [closingThought, setClosingThought] = useState('');
   const [title, setTitle] = useState('');
   const [throughline, setThroughline] = useState('');
-  const [voice, setVoice] = useState<Voice>('YEARNING');
+  const [length, setLength] = useState<ArticleLength>('ESSAY');
   const [article, setArticle] = useState('');
 
   function generateArticle() {
     const thoughts = splitThoughts(thoughtDump);
     if (thoughts.length < 3) {
       notifications.show({
-        title: 'ADD A FEW MORE THOUGHTS',
-        message: 'A handful of distinct ideas gives the article organizer enough material to build a throughline.',
+        title: 'ADD A LITTLE MORE OF YOUR DRAFT',
+        message: 'Add at least three distinct thoughts or sentences. A full draft works too.',
       });
       return;
     }
-    setArticle(buildArticle(thoughts, title, throughline, scene, longing, voice));
+    setArticle(buildArticle(thoughtDump, title, throughline, scene, closingThought));
   }
 
   async function copyArticle() {
@@ -108,66 +99,67 @@ export default function WritingStudio() {
   }
 
   const wordCount = articleWordCount(article);
+  const targetLength = ARTICLE_LENGTHS[length];
 
   return (
     <div className="content learning-page writing-page">
       <header className="page-heading">
         <div className="eyebrow"><span className="eyebrow-dot" /> SUBSTACK · PERSONAL ESSAY STUDIO</div>
-        <h1>Start with the detail you can&apos;t forget.</h1>
-        <p>Write the moment as you remember it, then the thing you still want. No tidy lesson required.</p>
+        <h1>Write it the way you would tell it.</h1>
+        <p>A love letter, a reflection, or a full guide can all start with your actual thought. This tool keeps your words yours.</p>
       </header>
 
       <div className="writing-layout">
         <section className="writing-panel">
           <div className="writing-panel-heading">
-            <div><span className="card-kicker">01 · THE RAW MATERIAL</span><h2>Start where it happened.</h2></div>
+            <div><span className="card-kicker">01 · THE RAW MATERIAL</span><h2>Put down the whole thought.</h2></div>
             <span className="writing-local-chip">PRIVATE · ON THIS DEVICE</span>
           </div>
-          <p className="writing-helper">Write the room, the light, one sound, the object under your hand, the words you couldn&apos;t say. Then add the thoughts you keep circling. Specifics make the ache legible.</p>
+          <p className="writing-helper">Be direct, tender, funny, and firm where it feels true. Keep your English/Swahili/Sheng code-switching, slang, caps, side comments, repetition, and emojis. Specific moments and honest opinions are the point; no generic lesson needed.</p>
           <Textarea
-            aria-label="Thought dump"
+            aria-label="Your article notes and draft"
             className="writing-thoughts"
             minRows={12}
             onChange={(event) => setThoughtDump(event.currentTarget.value)}
-            placeholder={'I keep thinking about…\nSomething I love is…\nA question I can’t shake…\nA tiny detail that stayed with me…'}
+            placeholder={'Write the full thought, not just bullet points. Keep your paragraph breaks, headings, exact phrasing, code-switching, and emojis. A rough draft is welcome.'}
             value={thoughtDump}
           />
           <div className="writing-details">
             <Textarea
-              aria-label="Opening scene or vivid detail"
+              aria-label="Opening moment or detail (optional)"
               className="writing-scene"
-              label="OPENING SCENE · A REAL MOMENT"
+              label="OPENING MOMENT · OPTIONAL"
               minRows={4}
               onChange={(event) => setScene(event.currentTarget.value)}
-              placeholder="What was the light doing? What sound did no one else notice? What were you holding? Include the small detail you still remember."
+              placeholder="A specific moment or detail you might want to open with. Leave this blank if your piece starts with an opinion."
               value={scene}
             />
             <Textarea
-              aria-label="The sentence you are still longing to say"
+              aria-label="Closing thought (optional)"
               className="writing-longing"
-              label="THE WANTING · IN YOUR OWN WORDS"
+              label="CLOSING THOUGHT · OPTIONAL"
               minRows={4}
-              onChange={(event) => setLonging(event.currentTarget.value)}
-              placeholder="I still wish… / I miss… / I wanted… / I thought I would be over…"
-              value={longing}
+              onChange={(event) => setClosingThought(event.currentTarget.value)}
+              placeholder="Your final thought, exactly how you want to say it. Leave it blank if the draft already has its ending."
+              value={closingThought}
             />
           </div>
           <div className="writing-options">
             <TextInput aria-label="Working title (optional)" label="WORKING TITLE · OPTIONAL" onChange={(event) => setTitle(event.currentTarget.value)} placeholder="A title will be suggested from your notes" value={title} />
             <TextInput aria-label="What ties these thoughts together? (optional)" label="THE THROUGHLINE · OPTIONAL" onChange={(event) => setThroughline(event.currentTarget.value)} placeholder="e.g. why making things helps me feel grounded" value={throughline} />
-            <label className="writing-voice"><span>VOICE</span><select aria-label="Article voice" onChange={(event) => {
+            <label className="writing-length"><span>TARGET LENGTH</span><select aria-label="Target article length" onChange={(event) => {
               const value = event.currentTarget.value;
-              if (value === 'YEARNING' || value === 'REFLECTIVE' || value === 'CONVERSATIONAL' || value === 'ESSAYISTIC') setVoice(value);
-            }} value={voice}><option value="YEARNING">Yearning · intimate</option><option value="REFLECTIVE">Reflective</option><option value="CONVERSATIONAL">Conversational</option><option value="ESSAYISTIC">Essayistic</option></select></label>
+              if (value === 'REFLECTION' || value === 'ESSAY' || value === 'GUIDE') setLength(value);
+            }} value={length}><option value="REFLECTION">Short reflection · 500–800 words</option><option value="ESSAY">Full essay · 800–1,200 words</option><option value="GUIDE">Long guide · 1,200–1,800 words</option></select></label>
           </div>
           <Button className="form-button writing-generate" onClick={generateArticle} type="button">ORGANIZE INTO AN ARTICLE</Button>
-          <p className="writing-privacy">Your words stay on this device. The organizer keeps your scene and notes intact, adds only light structure, and never invents memories, dialogue, or sensory details. Give the draft your own final rhythm before publishing.</p>
+          <p className="writing-privacy">Everything stays on this device. Your notes and paragraphs stay in your wording, including their code-switching and punctuation; the organizer only places your title, optional opening, draft, and closing thought in order. It never translates, pads, or invents lines.</p>
         </section>
 
         <section aria-label="Article draft" className="writing-panel writing-output">
           <div className="writing-panel-heading">
             <div><span className="card-kicker">02 · YOUR ARTICLE DRAFT</span><h2>Make it yours before it goes out.</h2></div>
-            <span className="writing-word-count">{wordCount ? `${wordCount} WORDS` : 'NO DRAFT YET'}</span>
+            <span aria-live="polite" className="writing-word-count">{wordCount ? `${wordCount.toLocaleString()} / ${targetLength.min.toLocaleString()}–${targetLength.max.toLocaleString()} WORDS` : `AIM ${targetLength.min.toLocaleString()}–${targetLength.max.toLocaleString()} WORDS`}</span>
           </div>
           {article ? (
             <>
@@ -180,11 +172,11 @@ export default function WritingStudio() {
           ) : (
             <div className="writing-empty">
               <span aria-hidden="true">✦</span>
-              <h3>What did the room look like?</h3>
-              <p>Start with a real moment: a detail under your fingers, a sound still in your ear, a sentence you wish you had said. Leave the explanation for later.</p>
+              <h3>What do you keep coming back to?</h3>
+              <p>Start with a memory, a strong opinion, a question, or a sentence you wish you had said. Paste a full rough draft if it is already taking shape.</p>
             </div>
           )}
-          <p className="writing-editor-note">This is a first draft, not a fact-check or a substitute for your own final edit. Your raw notes and draft stay only in this page until you copy or download them.</p>
+          <p className="writing-editor-note">Edit the organized draft right here before copying or downloading. The target length is a guide, not a rule, and the draft will never add a lesson or tidy away your voice.</p>
         </section>
       </div>
     </div>

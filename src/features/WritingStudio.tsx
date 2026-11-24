@@ -2,28 +2,7 @@ import { useState } from 'react';
 import { Button, Textarea, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 
-type Voice = 'REFLECTIVE' | 'CONVERSATIONAL' | 'ESSAYISTIC';
-
-const sectionTitles = [
-  'The thought I want to follow',
-  'What becomes clearer when I look closer',
-  'The tension I want to leave room for',
-  'Where I find myself landing',
-];
-
-const sectionTransitions = [
-  'I want to begin with the moment or image behind these notes. That is where a reader can meet me: in the detail that made me stop and pay attention.',
-  'The second layer changes the angle. A piece can be more honest when it shows how one idea shifts beside another, rather than pretending everything arrived fully formed.',
-  'I can let this tension stay in the draft instead of smoothing it away. Sometimes the space between what I want and what I know is the most interesting part.',
-  'This is what I want to carry beyond the page. I can leave a question open and still say something meaningful about why I return to it.',
-];
-
-const sectionReflections = [
-  'What makes this more than a passing note is the life around it. I want to add the ordinary scene, conversation, or small detail that first made it feel real. That is where the essay can become recognizably mine.',
-  'The difference between these thoughts is useful. One can name what I notice while the other reveals what I am still learning; together they give a reader a reason to keep following the idea.',
-  'I do not have to resolve every question to write honestly about it. I can say what I believe today, admit what I cannot explain yet, and let that uncertainty be part of the story instead of hiding it.',
-  'After following these details, I am left with a more specific view of what matters to me. I can carry that into the next thing I make, read, or notice, without pretending this is the last word.',
-];
+type Voice = 'YEARNING' | 'REFLECTIVE' | 'CONVERSATIONAL' | 'ESSAYISTIC';
 
 function splitThoughts(raw: string) {
   const seen = new Set<string>();
@@ -44,61 +23,45 @@ function titleFromThought(thought: string) {
   return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
-function quoteThought(thought: string) {
-  return `“${thought.replace(/[.!?]+$/, '')}”`;
-}
-
 function articleWordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
-function buildArticle(thoughts: string[], title: string, throughline: string, voice: Voice) {
+function buildArticle(thoughts: string[], title: string, throughline: string, scene: string, longing: string, voice: Voice) {
   const articleTitle = title.trim() || titleFromThought(throughline || thoughts[0]);
-  const topic = throughline.trim() || 'the ideas I keep returning to';
-  const openings: Record<Voice, string> = {
-    REFLECTIVE: `Some thoughts arrive in no particular order. Mine began as a handful of notes, then slowly gathered around ${topic}. This draft follows that thread without making it neater or more certain than it really is; I want to see what the ideas reveal when I give them room.`,
-    CONVERSATIONAL: `I had a few thoughts rattling around and decided to put them somewhere I could see them. Reading the notes together helped me notice ${topic}. So here is the longer version: what I keep thinking about, what I am still figuring out, and why I want to stay with it.`,
-    ESSAYISTIC: `A passing thought can be easy to dismiss. These notes kept returning, though, and began to gather around ${topic}. I am treating that recurrence as an invitation: to look carefully, leave room for contradiction, and trace what these ideas mean to me before trying to make them mean something to everyone.`,
+  const openingScene = scene.trim() || thoughts[0];
+  const bodyThoughts = scene.trim() ? thoughts : thoughts.slice(1);
+  const paragraphCount = Math.min(4, Math.max(1, Math.ceil(bodyThoughts.length / 3)));
+  const paragraphSize = Math.ceil(bodyThoughts.length / paragraphCount);
+  const paragraphs = Array.from({ length: paragraphCount }, (_, index) =>
+    bodyThoughts.slice(index * paragraphSize, (index + 1) * paragraphSize).join(' '),
+  ).filter(Boolean);
+  const endings: Record<Exclude<Voice, 'YEARNING'>, string> = {
+    REFLECTIVE: 'I am still working out what this want asks of me. I can name it more clearly now.',
+    CONVERSATIONAL: 'I do not have an answer yet. I just know I needed to say it plainly.',
+    ESSAYISTIC: 'The question remains open; I will not pretend the wanting has become an answer.',
   };
-  const closings: Record<Voice, string> = {
-    REFLECTIVE: 'I do not need to turn this into a final answer. For now, I am glad I followed the thought far enough to see its edges: the parts I can name, the parts I want to question, and the details I still want to bring into the light. That feels like a worthwhile place to pause—and a good place to begin again.',
-    CONVERSATIONAL: 'I am leaving this with a little more clarity than I had when I started, even if I do not have everything figured out. Maybe that is enough for one draft. The thoughts are still mine to revisit, add to, and change my mind about—and I would rather keep that honesty than force a perfect ending.',
-    ESSAYISTIC: 'The notes remain open, as does the question beneath them. What I have now is not a verdict but a clearer account of where my attention has gone and why. I can return with more examples, more context, and a different point of view. For today, following the thread is enough.',
-  };
-  const groupCount = Math.min(4, Math.max(3, Math.ceil(thoughts.length / 2)));
-  const groupSize = Math.ceil(thoughts.length / groupCount);
-  const sections: string[] = [];
-
-  for (let index = 0; index < groupCount; index += 1) {
-    const group = thoughts.slice(index * groupSize, (index + 1) * groupSize);
-    if (!group.length) continue;
-    const transition = sectionTransitions[Math.min(index, sectionTransitions.length - 1)];
-    const reflection = sectionReflections[Math.min(index, sectionReflections.length - 1)];
-    const pairedThoughts = group.length > 1
-      ? ` The next note I want to set beside it is ${quoteThought(group[1])}.`
-      : '';
-    sections.push(`## ${sectionTitles[index]}\n\nAt the center of this section is ${quoteThought(group[0])}.${pairedThoughts}\n\n${transition} ${reflection}`);
-  }
+  const closing = voice === 'YEARNING' ? longing.trim() : endings[voice];
 
   return [
     `# ${articleTitle}`,
+    throughline.trim() ? `*${throughline.trim()}*` : '',
     '',
-    `*A personal essay draft about ${topic}.*`,
+    openingScene,
     '',
-    openings[voice],
+    ...paragraphs,
     '',
-    ...sections.flatMap((section) => [section, '']),
-    '## A place to pause',
-    '',
-    closings[voice],
-  ].join('\n').trim();
+    closing,
+  ].filter(Boolean).join('\n\n').trim();
 }
 
 export default function WritingStudio() {
   const [thoughtDump, setThoughtDump] = useState('');
+  const [scene, setScene] = useState('');
+  const [longing, setLonging] = useState('');
   const [title, setTitle] = useState('');
   const [throughline, setThroughline] = useState('');
-  const [voice, setVoice] = useState<Voice>('REFLECTIVE');
+  const [voice, setVoice] = useState<Voice>('YEARNING');
   const [article, setArticle] = useState('');
 
   function generateArticle() {
@@ -110,7 +73,7 @@ export default function WritingStudio() {
       });
       return;
     }
-    setArticle(buildArticle(thoughts, title, throughline, voice));
+    setArticle(buildArticle(thoughts, title, throughline, scene, longing, voice));
   }
 
   async function copyArticle() {
@@ -149,18 +112,18 @@ export default function WritingStudio() {
   return (
     <div className="content learning-page writing-page">
       <header className="page-heading">
-        <div className="eyebrow"><span className="eyebrow-dot" /> SUBSTACK · FROM THOUGHTS TO ESSAY</div>
-        <h1>Give your thoughts a place to land.</h1>
-        <p>Drop in the loose ideas, questions, and little things you keep noticing. Shape them into a personal essay draft.</p>
+        <div className="eyebrow"><span className="eyebrow-dot" /> SUBSTACK · PERSONAL ESSAY STUDIO</div>
+        <h1>Start with the detail you can&apos;t forget.</h1>
+        <p>Write the moment as you remember it, then the thing you still want. No tidy lesson required.</p>
       </header>
 
       <div className="writing-layout">
         <section className="writing-panel">
           <div className="writing-panel-heading">
-            <div><span className="card-kicker">01 · THE RAW MATERIAL</span><h2>Start with the unfiltered version.</h2></div>
+            <div><span className="card-kicker">01 · THE RAW MATERIAL</span><h2>Start where it happened.</h2></div>
             <span className="writing-local-chip">PRIVATE · ON THIS DEVICE</span>
           </div>
-          <p className="writing-helper">Paste fragments, questions, memories, opinions, or a messy paragraph. Use a new line for separate thoughts. Three or more distinct ideas help create a fuller draft.</p>
+          <p className="writing-helper">Write the room, the light, one sound, the object under your hand, the words you couldn&apos;t say. Then add the thoughts you keep circling. Specifics make the ache legible.</p>
           <Textarea
             aria-label="Thought dump"
             className="writing-thoughts"
@@ -169,16 +132,36 @@ export default function WritingStudio() {
             placeholder={'I keep thinking about…\nSomething I love is…\nA question I can’t shake…\nA tiny detail that stayed with me…'}
             value={thoughtDump}
           />
+          <div className="writing-details">
+            <Textarea
+              aria-label="Opening scene or vivid detail"
+              className="writing-scene"
+              label="OPENING SCENE · A REAL MOMENT"
+              minRows={4}
+              onChange={(event) => setScene(event.currentTarget.value)}
+              placeholder="What was the light doing? What sound did no one else notice? What were you holding? Include the small detail you still remember."
+              value={scene}
+            />
+            <Textarea
+              aria-label="The sentence you are still longing to say"
+              className="writing-longing"
+              label="THE WANTING · IN YOUR OWN WORDS"
+              minRows={4}
+              onChange={(event) => setLonging(event.currentTarget.value)}
+              placeholder="I still wish… / I miss… / I wanted… / I thought I would be over…"
+              value={longing}
+            />
+          </div>
           <div className="writing-options">
             <TextInput aria-label="Working title (optional)" label="WORKING TITLE · OPTIONAL" onChange={(event) => setTitle(event.currentTarget.value)} placeholder="A title will be suggested from your notes" value={title} />
             <TextInput aria-label="What ties these thoughts together? (optional)" label="THE THROUGHLINE · OPTIONAL" onChange={(event) => setThroughline(event.currentTarget.value)} placeholder="e.g. why making things helps me feel grounded" value={throughline} />
             <label className="writing-voice"><span>VOICE</span><select aria-label="Article voice" onChange={(event) => {
               const value = event.currentTarget.value;
-              if (value === 'REFLECTIVE' || value === 'CONVERSATIONAL' || value === 'ESSAYISTIC') setVoice(value);
-            }} value={voice}><option value="REFLECTIVE">Reflective</option><option value="CONVERSATIONAL">Conversational</option><option value="ESSAYISTIC">Essayistic</option></select></label>
+              if (value === 'YEARNING' || value === 'REFLECTIVE' || value === 'CONVERSATIONAL' || value === 'ESSAYISTIC') setVoice(value);
+            }} value={voice}><option value="YEARNING">Yearning · intimate</option><option value="REFLECTIVE">Reflective</option><option value="CONVERSATIONAL">Conversational</option><option value="ESSAYISTIC">Essayistic</option></select></label>
           </div>
           <Button className="form-button writing-generate" onClick={generateArticle} type="button">ORGANIZE INTO AN ARTICLE</Button>
-          <p className="writing-privacy">This offline organizer works only with your text. It does not call an AI service, upload, or save your thoughts. It adds structure and transitions, not new facts or experiences—edit the draft and add details in your own voice before publishing.</p>
+          <p className="writing-privacy">Your words stay on this device. The organizer keeps your scene and notes intact, adds only light structure, and never invents memories, dialogue, or sensory details. Give the draft your own final rhythm before publishing.</p>
         </section>
 
         <section aria-label="Article draft" className="writing-panel writing-output">
@@ -197,8 +180,8 @@ export default function WritingStudio() {
           ) : (
             <div className="writing-empty">
               <span aria-hidden="true">✦</span>
-              <h3>Your essay will take shape here.</h3>
-              <p>The draft gets a title, an opening, clear sections, and a closing reflection. You can edit the full article here, then copy it or download it as Markdown.</p>
+              <h3>What did the room look like?</h3>
+              <p>Start with a real moment: a detail under your fingers, a sound still in your ear, a sentence you wish you had said. Leave the explanation for later.</p>
             </div>
           )}
           <p className="writing-editor-note">This is a first draft, not a fact-check or a substitute for your own final edit. Your raw notes and draft stay only in this page until you copy or download them.</p>

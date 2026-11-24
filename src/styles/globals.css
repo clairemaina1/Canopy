@@ -915,9 +915,12 @@ h1 span { color: #dbc47e; }
 .writing-panel-heading h2 { margin: 5px 0 0; font: 600 14px Manrope, sans-serif; }
 .writing-local-chip, .writing-word-count { flex: 0 0 auto; padding: 6px 8px; border: 1px solid #58674d; border-radius: 20px; color: #d0bd7d; font-size: 7px; font-weight: 800; letter-spacing: .4px; }
 .writing-helper, .writing-privacy, .writing-editor-note { margin: 0; color: #aeb9ad; font-size: 8px; line-height: 1.7; }
-.writing-thoughts textarea, .writing-article textarea { width: 100%; padding: 11px; border: 1px solid #58674d; border-radius: 7px; background: #0e1a13; color: #e4e9e1; font: 10px/1.75 'DM Sans', sans-serif; }
+.writing-thoughts textarea, .writing-article textarea, .writing-details textarea { width: 100%; padding: 11px; border: 1px solid #58674d; border-radius: 7px; background: #0e1a13; color: #e4e9e1; font: 10px/1.75 'DM Sans', sans-serif; }
 .writing-thoughts textarea { min-height: 230px; }
 .writing-article textarea { min-height: 470px; white-space: pre-wrap; }
+.writing-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.writing-details .mantine-Textarea-label { color: #c9ba7e; font-size: 7px; font-weight: 800; letter-spacing: .5px; }
+.writing-details textarea { min-height: 108px; }
 .writing-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .writing-options .mantine-TextInput-label { color: #c9ba7e; font-size: 7px; font-weight: 800; letter-spacing: .5px; }
 .writing-options .mantine-TextInput-input { border-color: #58674d; background: #0e1a13; color: #e4e9e1; font-size: 9px; }
@@ -983,6 +986,6 @@ h1 span { color: #dbc47e; }
   .cycle-profile-switcher { grid-template-columns: 1fr; }
   .writing-panel { padding: 13px; }
   .writing-panel-heading { flex-direction: column; }
-  .writing-options { grid-template-columns: 1fr; }
+  .writing-details, .writing-options { grid-template-columns: 1fr; }
   .writing-article textarea, .writing-empty { min-height: 350px; }
 }

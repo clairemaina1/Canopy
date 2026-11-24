@@ -2,17 +2,37 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from '
 import { Button, TextInput } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import StudyTutor, { type TutorConcept } from './StudyTutor';
+import ExamSchedulePlan from './ExamSchedulePlan';
+import StudyGuideBuilder from './StudyGuideBuilder';
+import { strathmoreExamSchedule } from './strathmoreExams';
 import { extractDocumentText } from './documentText';
 
 type StudyMaterial = { id: string; fileName: string; text: string; addedAt: string };
-type StudyUnit = { id: string; name: string; materials: StudyMaterial[] };
+type StudyUnit = {
+  id: string;
+  name: string;
+  code?: string;
+  examDate?: string;
+  examTime?: string;
+  group?: string;
+  venue?: string;
+  lecturer?: string;
+  materials: StudyMaterial[];
+};
 type Semester = { name: string; units: StudyUnit[] };
 
 const storageKey = 'canopy-semester-study-v1';
-const maxUnits = 7;
-const maxMaterialsPerUnit = 5;
+const maxUnits = 9;
+const maxMaterialsPerUnit = 10;
 const maxSourceTextLength = 30_000;
-const initialSemester: Semester = { name: 'CURRENT SEMESTER', units: [] };
+const initialSemester: Semester = {
+  name: 'DECEMBER 2026 EXAMS',
+  units: strathmoreExamSchedule.map((exam) => ({
+    ...exam,
+    id: `exam-${exam.code.toLowerCase().replaceAll(' ', '-')}`,
+    materials: [],
+  })),
+};
 const stopWords = new Set([
   'about', 'after', 'again', 'also', 'among', 'because', 'been', 'before', 'being', 'between', 'could',
   'does', 'each', 'from', 'have', 'into', 'more', 'most', 'other', 'over', 'same', 'should', 'some',
@@ -42,6 +62,12 @@ function isStudyUnit(value: unknown): value is StudyUnit {
     && typeof item.name === 'string'
     && item.name.length > 0
     && item.name.length <= 80
+    && (item.code === undefined || typeof item.code === 'string')
+    && (item.examDate === undefined || (typeof item.examDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.examDate)))
+    && (item.examTime === undefined || typeof item.examTime === 'string')
+    && (item.group === undefined || typeof item.group === 'string')
+    && (item.venue === undefined || typeof item.venue === 'string')
+    && (item.lecturer === undefined || typeof item.lecturer === 'string')
     && Array.isArray(item.materials)
     && item.materials.length <= maxMaterialsPerUnit
     && item.materials.every(isStudyMaterial);
@@ -119,8 +145,31 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         if (!isSemester(parsed)) throw new Error('Saved semester data has an unexpected format and was not changed.');
-        setSemester(parsed);
-        setSelectedUnitId(parsed.units[0]?.id ?? '');
+        const migratedUnits = parsed.units.map((unit) => {
+          const examDetails = strathmoreExamSchedule.find((exam) => exam.code === unit.code
+            || exam.name.toLowerCase() === unit.name.toLowerCase()
+            || unit.name.toLowerCase().includes(exam.name.toLowerCase()));
+          return examDetails ? { ...examDetails, ...unit } : unit;
+        });
+        if (parsed.units.length === 0 && parsed.name === 'CURRENT SEMESTER') {
+          setSemester(initialSemester);
+          setSelectedUnitId(initialSemester.units[0]?.id ?? '');
+        } else {
+          if (migratedUnits.some((unit) => Boolean(unit.code))) {
+            strathmoreExamSchedule.forEach((exam) => {
+              if (migratedUnits.length < maxUnits && !migratedUnits.some((unit) => unit.code === exam.code)) {
+                migratedUnits.push({
+                  ...exam,
+                  id: `exam-${exam.code.toLowerCase().replaceAll(' ', '-')}`,
+                  materials: [],
+                });
+              }
+            });
+          }
+          const migratedSemester = { ...parsed, units: migratedUnits };
+          setSemester(migratedSemester);
+          setSelectedUnitId(migratedSemester.units[0]?.id ?? '');
+        }
       }
       setStorageReady(true);
     } catch (error) {
@@ -162,7 +211,7 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
     event.preventDefault();
     const name = unitName.trim();
     if (semester.units.length >= maxUnits) {
-      notifications.show({ title: 'SEVEN UNITS ALREADY ADDED', message: 'Remove a unit before adding another.' });
+      notifications.show({ title: 'NINE UNITS ALREADY ADDED', message: 'Remove a unit before adding another.' });
       return;
     }
     if (name.length < 2) {
@@ -259,10 +308,10 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
   return (
     <section className="semester-study planner-panel">
       <header className="semester-heading">
-        <div><span className="card-kicker">TEACH IT BACK · YOUR BBIT SEMESTER</span><h2>Seven units, one study space.</h2></div>
+        <div><span className="card-kicker">TEACH IT BACK · YOUR DECEMBER 2026 EXAMS</span><h2>Nine exams, one study space.</h2></div>
         <span className="semester-unit-count">{semester.units.length}/{maxUnits} UNITS</span>
       </header>
-      <p className="semester-intro">Add your semester’s units, then attach past papers, lecture notes, or mark schemes to each one. The unit names feed into the study-plan generator above; each unit also gets its own question review and teach-back coach.</p>
+      <p className="semester-intro">The timetable you shared lists nine exams, so they’re preloaded below. Add papers, notes, or mark schemes for source-based guides and worked Q&amp;A; remove any exam that isn’t yours. Unit names also feed the study-plan generator above.</p>
       <div className="semester-management">
         <TextInput aria-label="Semester name" label="SEMESTER" onChange={(event) => renameSemester(event.currentTarget.value)} placeholder="e.g. Semester 1 · 2027" value={semester.name} />
         <form className="semester-add-unit" onSubmit={addUnit}>
@@ -279,19 +328,21 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
         </div>
       )}
 
+      {semester.units.some((unit) => unit.examDate) && <ExamSchedulePlan units={semester.units} />}
+
       {semester.units.length > 0 ? (
         <>
           <nav aria-label="Semester units" className="semester-unit-tabs">
             {semester.units.map((unit) => (
               <button aria-pressed={selectedUnit?.id === unit.id} className={selectedUnit?.id === unit.id ? 'active' : ''} key={unit.id} onClick={() => { setSelectedUnitId(unit.id); setSelectedQuestion(''); setConfirmUnitDelete(false); setImportStatus(''); }} type="button">
-                <b>{unit.name}</b><small>{unit.materials.length}/{maxMaterialsPerUnit} SOURCES</small>
+                <b>{unit.code ?? unit.name}</b><small>{unit.name}{unit.examDate ? ` · ${new Date(`${unit.examDate}T12:00:00`).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}` : ''} · {unit.materials.length} SOURCES</small>
               </button>
             ))}
           </nav>
           {selectedUnit && (
             <div className="semester-unit-workspace">
               <div className="semester-unit-heading">
-                <div><span className="card-kicker">CURRENT UNIT</span><h3>{selectedUnit.name}</h3></div>
+                <div><span className="card-kicker">CURRENT UNIT</span><h3>{selectedUnit.code ? `${selectedUnit.code} · ` : ''}{selectedUnit.name}</h3>{selectedUnit.examDate && <p className="semester-exam-meta">Exam {new Date(`${selectedUnit.examDate}T12:00:00`).toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long' })} · {selectedUnit.examTime} · {selectedUnit.venue}</p>}</div>
                 <Button className="semester-clear-button" onClick={() => setConfirmUnitDelete(true)} type="button">DELETE THIS UNIT</Button>
               </div>
               {confirmUnitDelete && (
@@ -304,7 +355,7 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
               <label className="semester-file-picker">
                 <input accept=".txt,.md,.csv,.pdf,image/*" multiple onChange={handleMaterialFiles} type="file" />
                 <span>＋ ADD PAST PAPERS, NOTES OR MARK SCHEMES</span>
-                <small>Text, PDF, or image · up to 20 MB each · stored text capped at {maxSourceTextLength.toLocaleString()} characters per file</small>
+                <small>Text, PDF, or image · up to {maxMaterialsPerUnit} sources · 20 MB each · stored text capped at {maxSourceTextLength.toLocaleString()} characters per file</small>
               </label>
               {importStatus && <p aria-live="polite" className="semester-import-status">{importStatus}</p>}
 
@@ -335,9 +386,10 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
                 <div className="semester-empty">
                   <span aria-hidden="true">⌁</span>
                   <h3>Give {selectedUnit.name} its first source.</h3>
-                  <p>Upload a past paper to surface question prompts, then explain the key ideas from memory. Add notes or a marking scheme if you want the coach to review course-specific answers.</p>
+                  <p>Upload a past paper, course outline, or notes for a source-based guide. You can still build a provisional starter guide without files.</p>
                 </div>
               )}
+              {semester.units.map((unit) => <StudyGuideBuilder active={unit.id === selectedUnit.id} key={unit.id} unit={unit} />)}
             </div>
           )}
         </>
@@ -345,10 +397,10 @@ export default function SemesterStudy({ onUnitsChange }: { onUnitsChange: (units
         <div className="semester-empty">
           <span aria-hidden="true">07</span>
           <h3>Start with your first unit.</h3>
-          <p>Add up to seven unit names for the current semester. You can delete one unit or clear the semester when it ends, then start a fresh set.</p>
+          <p>Add up to nine unit names for the current semester. You can delete one unit or clear the semester when it ends, then start a fresh set.</p>
         </div>
       )}
-      <p className="semester-privacy">Files are read in your browser; only extracted text and file names are stored in this browser on this device. No account login is provided for these study materials.</p>
+      <p className="semester-privacy">Files are read and stored in this browser on this device. Nothing is sent until you tap a guide button; then the selected unit’s extracted text and file names go to Canopy’s server and Vercel AI Gateway. Generated guides stay in this open session—download a Markdown copy to keep one.</p>
     </section>
   );
 }

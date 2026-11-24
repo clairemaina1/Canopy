@@ -4,6 +4,7 @@ import path from 'node:path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { ArticleRequestError, generateArticleDraft } from './src/server/article-writer';
+import { generateStudyGuide, getStudyGuideError } from './src/server/study-guide';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -68,6 +69,60 @@ function articleApiPlugin(): Plugin {
   };
 }
 
+function studyGuideApiPlugin(): Plugin {
+  return {
+    name: 'canopy-study-guide-api',
+    configureServer(server) {
+      server.middlewares.use('/api/generate-study-guide', async (request, response) => {
+        response.setHeader('Cache-Control', 'no-store');
+        response.setHeader('Content-Type', 'application/json; charset=utf-8');
+        const sendJson = (status: number, body: unknown) => {
+          response.statusCode = status;
+          response.end(JSON.stringify(body));
+        };
+
+        if (request.method !== 'POST') {
+          response.setHeader('Allow', 'POST');
+          sendJson(405, { error: 'Use POST to generate a study guide.' });
+          return;
+        }
+
+        try {
+          const chunks: Buffer[] = [];
+          let totalBytes = 0;
+          for await (const chunk of request) {
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            totalBytes += buffer.byteLength;
+            if (totalBytes > 500_000) {
+              throw new StudyGuideRequestError('Keep the selected unit’s combined source text under 210,000 characters.', 413);
+            }
+            chunks.push(buffer);
+          }
+
+          let body: unknown;
+          try {
+            body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          } catch {
+            throw new StudyGuideRequestError('Send valid unit details and source text, then try again.', 400);
+          }
+
+          const host = headerValue(request.headers['x-forwarded-host']) ?? headerValue(request.headers.host);
+          const clientKey = headerValue(request.headers['x-forwarded-for'])?.split(',')[0].trim() ?? request.socket.remoteAddress ?? 'unknown';
+          const guide = await generateStudyGuide(body, {
+            origin: headerValue(request.headers.origin),
+            host,
+            clientKey,
+          });
+          sendJson(200, { guide });
+        } catch (error) {
+          const { statusCode, message } = getStudyGuideError(error);
+          sendJson(statusCode, { error: message });
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const runtimeEnv = loadEnv(mode, projectRoot, '');
   for (const [key, value] of Object.entries(runtimeEnv)) {
@@ -75,7 +130,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), articleApiPlugin()],
+    plugins: [react(), articleApiPlugin(), studyGuideApiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(projectRoot, './src'),

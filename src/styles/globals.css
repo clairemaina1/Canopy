@@ -998,14 +998,83 @@ h1 span { color: #dbc47e; }
 .study-tutor-lesson p { margin: 6px 0; color: #d0d9ce; font-size: 8px; line-height: 1.7; }
 .study-tutor-lesson > b { color: #e2d396; font-size: 7px; line-height: 1.6; }
 
+.exam-plan { display: grid; gap: 13px; min-width: 0; padding: 14px; border: 1px solid #53634e; border-radius: 9px; background: linear-gradient(140deg, #17271f, #101d15); }
+.exam-plan-heading, .revision-plan-heading, .study-guide-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.exam-plan-heading h3, .revision-plan-heading h3, .study-guide-heading h4 { margin: 5px 0 0; color: #edf0e8; font: 600 15px Manrope, sans-serif; }
+.exam-plan-count { flex: 0 0 auto; padding: 6px 8px; border: 1px solid #718260; border-radius: 20px; color: #e0d091; font-size: 9px; font-weight: 800; letter-spacing: .5px; }
+.exam-timetable { border: 1px solid #53634e; border-radius: 7px; background: #101d15; }
+.exam-timetable summary { padding: 11px; color: #e0d091; cursor: pointer; font-size: 12px; font-weight: 750; }
+.exam-timetable-list { display: grid; gap: 8px; margin: 0; padding: 0 10px 10px; list-style: none; }
+.exam-timetable-item { display: grid; grid-template-columns: minmax(76px, .45fr) minmax(0, 1.55fr); gap: 9px; padding: 9px; border: 1px solid #394a3b; border-radius: 6px; background: #142219; }
+.exam-timetable-date, .exam-timetable-course { display: grid; align-content: start; gap: 4px; }
+.exam-timetable-date b { color: #e4d69b; font-size: 12px; }
+.exam-timetable-date span, .exam-timetable-course span { color: #bac6b9; font-size: 11px; line-height: 1.5; }
+.exam-timetable-course b { color: #edf0e8; font-size: 12px; line-height: 1.45; }
+.revision-plan-heading { align-items: end; }
+.revision-block-control { display: grid; gap: 4px; color: #c9ba7e; font-size: 9px; font-weight: 800; letter-spacing: .4px; }
+.revision-block-control select { min-height: 36px; padding: 6px 9px; border: 1px solid #58674d; border-radius: 6px; background: #0e1a13; color: #e4e9e1; font-size: 12px; }
+.revision-plan-note { margin: -6px 0 0; color: #bac6b9; font-size: 12px; line-height: 1.6; }
+.revision-day-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.revision-day { display: grid; gap: 8px; min-width: 0; padding: 10px; border: 1px solid #435542; border-radius: 7px; background: #101d15; }
+.revision-day-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.revision-day-heading b { color: #edf0e8; font-size: 12px; }
+.revision-day-heading span { color: #ebdba0; font-size: 9px; font-weight: 800; letter-spacing: .5px; }
+.revision-exam-today { margin: 0; color: #e7d89b; font-size: 11px; line-height: 1.5; }
+.revision-session-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.revision-session-list li { display: grid; gap: 4px; padding: 8px; border-left: 2px solid #c9b877; background: #18271d; }
+.revision-session-list li span { color: #c9ba7e; font-size: 9px; font-weight: 800; letter-spacing: .4px; }
+.revision-session-list li b { color: #dbe4d9; font-size: 12px; line-height: 1.45; }
+.revision-show-more.mantine-Button-root { justify-self: start; min-height: 38px; color: #e0d091; font-size: 11px; }
+.semester-exam-meta { margin: 6px 0 0; color: #bac6b9; font-size: 11px; line-height: 1.55; }
+.study-guide-builder { display: grid; gap: 11px; min-width: 0; padding: 13px; border: 1px solid #627150; border-radius: 8px; background: linear-gradient(145deg, #18271e, #101d15); }
+.study-guide-builder[hidden] { display: none; }
+.study-guide-heading { align-items: center; }
+.study-guide-heading h4 { font-size: 14px; }
+.study-guide-intro, .study-guide-source-note, .study-guide-status, .study-guide-error, .study-guide-disclaimer { margin: 0; font-size: 12px; line-height: 1.65; }
+.study-guide-intro, .study-guide-source-note { color: #bdc9bc; }
+.study-guide-actions { display: grid; justify-items: start; gap: 9px; }
+.study-guide-generate.mantine-Button-root { height: auto; min-height: 42px; max-width: 100%; padding: 9px 13px; background: #e3d7a0; color: #17231a; font-size: 10px; font-weight: 850; line-height: 1.4; white-space: normal; }
+.study-guide-generate .mantine-Button-label { white-space: normal; text-align: center; }
+.study-guide-generate.mantine-Button-root:hover { background: #f0e6b9; }
+.study-guide-actions a { color: #e2d396; font-size: 12px; line-height: 1.5; text-underline-offset: 3px; }
+.study-guide-download.mantine-Button-root { min-height: 36px; color: #e2d396; font-size: 10px; }
+.study-guide-status { color: #e3d7a0; }
+.study-guide-error { padding: 9px; border: 1px solid #785c57; border-radius: 6px; background: #251b17; color: #ffd1bf; }
+.study-guide-result { display: grid; gap: 12px; min-width: 0; }
+.study-guide-overview, .study-guide-topic, .study-guide-gaps { padding: 11px; border: 1px solid #3c503f; border-radius: 7px; background: #101d15; }
+.study-guide-overview p, .study-guide-topic p { margin: 7px 0 0; color: #d4dfd2; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.study-guide-topics h5, .study-guide-questions h5, .study-guide-gaps h5 { margin: 0 0 8px; color: #e6d89e; font: 700 13px Manrope, sans-serif; }
+.study-guide-topics ol, .study-guide-questions ol { display: grid; gap: 8px; margin: 0; padding-left: 19px; }
+.study-guide-topic h6 { margin: 0; color: #f0eedf; font: 700 13px Manrope, sans-serif; }
+.study-guide-topic p b { color: #e0d091; }
+.study-guide-questions details { border: 1px solid #435542; border-radius: 7px; background: #101d15; }
+.study-guide-questions summary { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; align-items: start; padding: 10px; color: #e4e9e1; cursor: pointer; font-size: 12px; font-weight: 650; line-height: 1.55; }
+.study-guide-questions summary span { color: #e0d091; }
+.study-guide-answer { display: grid; gap: 8px; padding: 0 10px 10px; }
+.study-guide-answer p { margin: 0; color: #d0dbce; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.study-guide-answer p b { color: #e0d091; }
+.study-guide-answer small { color: #b3c0b2; font-size: 10px; line-height: 1.5; }
+.study-guide-gaps ul { display: grid; gap: 6px; margin: 0; padding-left: 18px; color: #d0dbce; font-size: 12px; line-height: 1.55; }
+.study-guide-disclaimer { color: #aeb9ad; }
+
 @media (max-width: 780px) {
+  .exam-plan-heading, .revision-plan-heading, .study-guide-heading { align-items: flex-start; flex-direction: column; }
+  .exam-plan-count { align-self: flex-start; }
+  .revision-block-control { width: min(100%, 220px); }
   .planner-calendar-layout, .cycle-dashboard, .writing-layout { grid-template-columns: 1fr; }
   .planner-input-grid { grid-template-columns: 1fr 1fr; }
   .cycle-summary { justify-content: flex-start; }
   .semester-management { grid-template-columns: 1fr 1fr; }
   .semester-management > .mantine-Button-root { justify-self: start; }
 }
+@media (max-width: 320px) {
+  body, #root, .app-shell { min-width: 0; }
+  .planner-panel-heading { align-items: flex-start; flex-direction: column; }
+}
 @media (max-width: 520px) {
+  .exam-plan, .study-guide-builder { padding: 11px; }
+  .exam-timetable-item { grid-template-columns: 1fr; }
+  .study-guide-generate.mantine-Button-root { width: 100%; }
   .planner-panel { padding: 13px; }
   .planner-input-grid { grid-template-columns: 1fr; }
   .planner-panel-heading { align-items: flex-start; }

@@ -10,40 +10,8 @@ const ARTICLE_LENGTHS: Record<ArticleLength, { min: number; max: number }> = {
   GUIDE: { min: 1200, max: 1800 },
 };
 
-function splitThoughts(raw: string) {
-  const seen = new Set<string>();
-  return raw.split(/\r?\n/).flatMap((line) => {
-    const cleanLine = line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim();
-    return cleanLine.match(/[^.!?]+[.!?]?/g) ?? [];
-  }).map((thought) => thought.trim()).filter((thought) => {
-    const key = thought.toLowerCase().replace(/[.!?]+$/, '');
-    if (thought.length < 8 || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, 24);
-}
-
-function titleFromThought(thought: string) {
-  const words = thought.replace(/[.!?]+$/, '').split(/\s+/);
-  const title = words.length > 10 ? `${words.slice(0, 10).join(' ')}…` : words.join(' ');
-  return title.charAt(0).toUpperCase() + title.slice(1);
-}
-
 function articleWordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
-}
-
-function buildArticle(rawDraft: string, title: string, throughline: string, scene: string, closingThought: string) {
-  const firstThought = splitThoughts(rawDraft)[0];
-  const articleTitle = title.trim() || titleFromThought(throughline || firstThought);
-
-  return [
-    `# ${articleTitle}`,
-    throughline.trim() ? `*${throughline.trim()}*` : '',
-    scene.trim(),
-    rawDraft.trim(),
-    closingThought.trim(),
-  ].filter(Boolean).join('\n\n').trim();
 }
 
 export default function WritingStudio() {
@@ -54,17 +22,40 @@ export default function WritingStudio() {
   const [throughline, setThroughline] = useState('');
   const [length, setLength] = useState<ArticleLength>('ESSAY');
   const [article, setArticle] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  function generateArticle() {
-    const thoughts = splitThoughts(thoughtDump);
-    if (thoughts.length < 3) {
+  async function generateArticle() {
+    if (thoughtDump.trim().length < 30) {
       notifications.show({
-        title: 'ADD A LITTLE MORE OF YOUR DRAFT',
-        message: 'Add at least three distinct thoughts or sentences. A full draft works too.',
+        title: 'ADD A LITTLE MORE SOURCE MATERIAL',
+        message: 'Give Canopy a few real thoughts, a rough paragraph, or a full draft to build from.',
       });
       return;
     }
-    setArticle(buildArticle(thoughtDump, title, throughline, scene, closingThought));
+
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/write-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: thoughtDump, scene, closingThought, title, throughline, length }),
+      });
+      const result: unknown = await response.json();
+      if (!result || typeof result !== 'object') throw new Error('Canopy could not read the writing response. Please try again.');
+      const payload = result as { text?: unknown; error?: unknown };
+      if (!response.ok || typeof payload.text !== 'string') {
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Canopy could not expand this draft. Please try again.');
+      }
+      setArticle(payload.text);
+      notifications.show({ title: 'YOUR FIRST DRAFT IS READY', message: 'Canopy added depth and structure while keeping your voice in the room.' });
+    } catch (error) {
+      notifications.show({
+        title: 'COULD NOT EXPAND YOUR DRAFT',
+        message: error instanceof Error ? error.message : 'Check your connection and try again.',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   async function copyArticle() {
@@ -105,23 +96,23 @@ export default function WritingStudio() {
     <div className="content learning-page writing-page">
       <header className="page-heading">
         <div className="eyebrow"><span className="eyebrow-dot" /> SUBSTACK · PERSONAL ESSAY STUDIO</div>
-        <h1>Write it the way you would tell it.</h1>
-        <p>A love letter, a reflection, or a full guide can all start with your actual thought. This tool keeps your words yours.</p>
+        <h1>Your voice, with more room to breathe.</h1>
+        <p>Bring the raw thought. Canopy will give it shape, depth, and sharper language without sanding off your lingo, humor, emojis, or human touch.</p>
       </header>
 
       <div className="writing-layout">
         <section className="writing-panel">
           <div className="writing-panel-heading">
             <div><span className="card-kicker">01 · THE RAW MATERIAL</span><h2>Put down the whole thought.</h2></div>
-            <span className="writing-local-chip">PRIVATE · ON THIS DEVICE</span>
+            <span className="writing-local-chip">AI-ASSISTED · SENT ON REQUEST</span>
           </div>
-          <p className="writing-helper">Be direct, tender, funny, and firm where it feels true. Keep your English/Swahili/Sheng code-switching, slang, caps, side comments, repetition, and emojis. Specific moments and honest opinions are the point; no generic lesson needed.</p>
+          <p className="writing-helper">Be direct, tender, funny, or firm where it feels true. Keep your English/Swahili/Sheng code-switching, slang, caps, side comments, repetition, and emojis. Canopy should add thought and useful vocabulary—not flatten your style or invent a generic lesson.</p>
           <Textarea
             aria-label="Your article notes and draft"
             className="writing-thoughts"
             minRows={12}
             onChange={(event) => setThoughtDump(event.currentTarget.value)}
-            placeholder={'Write the full thought, not just bullet points. Keep your paragraph breaks, headings, exact phrasing, code-switching, and emojis. A rough draft is welcome.'}
+            placeholder={'Drop the full messy thought: bullet points, paragraph breaks, exact phrases, Sheng/Swahili, side comments, and emojis. Canopy will build it out without inventing your life for you.'}
             value={thoughtDump}
           />
           <div className="writing-details">
@@ -152,8 +143,8 @@ export default function WritingStudio() {
               if (value === 'REFLECTION' || value === 'ESSAY' || value === 'GUIDE') setLength(value);
             }} value={length}><option value="REFLECTION">Short reflection · 500–800 words</option><option value="ESSAY">Full essay · 800–1,200 words</option><option value="GUIDE">Long guide · 1,200–1,800 words</option></select></label>
           </div>
-          <Button className="form-button writing-generate" onClick={generateArticle} type="button">ORGANIZE INTO AN ARTICLE</Button>
-          <p className="writing-privacy">Everything stays on this device. Your notes and paragraphs stay in your wording, including their code-switching and punctuation; the organizer only places your title, optional opening, draft, and closing thought in order. It never translates, pads, or invents lines.</p>
+          <Button className="form-button writing-generate" loading={isGenerating} onClick={generateArticle} type="button">{isGenerating ? 'BUILDING YOUR DRAFT…' : 'ADD DEPTH IN MY VOICE'}</Button>
+          <p className="writing-privacy">When you choose to generate, your notes are sent to Vercel AI Gateway for drafting. Canopy does not save them to a server; the draft stays editable in this browser. Review added details before sharing—AI can make mistakes.</p>
         </section>
 
         <section aria-label="Article draft" className="writing-panel writing-output">
@@ -173,10 +164,10 @@ export default function WritingStudio() {
             <div className="writing-empty">
               <span aria-hidden="true">✦</span>
               <h3>What do you keep coming back to?</h3>
-              <p>Start with a memory, a strong opinion, a question, or a sentence you wish you had said. Paste a full rough draft if it is already taking shape.</p>
+              <p>Start with a memory, a strong opinion, a question, or a sentence you wish you had said. Canopy will add shape and substance while keeping your language and point of view intact.</p>
             </div>
           )}
-          <p className="writing-editor-note">Edit the organized draft right here before copying or downloading. The target length is a guide, not a rule, and the draft will never add a lesson or tidy away your voice.</p>
+          <p className="writing-editor-note">Edit the expanded draft here before copying or downloading. The target length is a guide, not a rule. Canopy develops your ideas, but the final voice and every factual detail are yours to approve.</p>
         </section>
       </div>
     </div>

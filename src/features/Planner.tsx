@@ -16,6 +16,24 @@ type CalendarEvent = {
 const eventStorageKey = 'canopy-calendar-events-v1';
 const reminderStorageKey = 'canopy-calendar-reminders-v1';
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+let notificationRegistration: Promise<ServiceWorkerRegistration | null> | null = null;
+
+function getNotificationRegistration() {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+  notificationRegistration ??= navigator.serviceWorker.register('/service-worker.js').then(() => navigator.serviceWorker.ready).catch(() => null);
+  return notificationRegistration;
+}
+
+async function showDeviceAlarm(title: string, body: string, tag: string) {
+  const registration = await getNotificationRegistration();
+  if (registration) {
+    await registration.showNotification(title, { body, tag });
+    return;
+  }
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body, tag });
+  }
+}
 const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 function dateKey(date: Date) {
@@ -289,7 +307,9 @@ export default function Planner() {
         firedRef.current.add(event.id);
         notifications.show({ title: `REMINDER · ${event.title}`, message: `Starts at ${eventTime(event)}.` });
         if (reminderPermission === 'granted') {
-          new Notification(event.title, { body: `Starts at ${eventTime(event)}.`, tag: event.id });
+          void showDeviceAlarm(event.title, `Starts at ${eventTime(event)}.`, event.id).catch(() => {
+            notifications.show({ title: 'DEVICE ALERT COULD NOT BE SENT', message: 'Check this browser’s notification settings and try enabling alerts again.' });
+          });
         }
         if (soundEnabled && audioContextRef.current) {
           const oscillator = audioContextRef.current.createOscillator();
@@ -335,6 +355,7 @@ export default function Planner() {
       } else {
         setReminderPermission('unsupported');
       }
+      await getNotificationRegistration();
       if ('AudioContext' in window) {
         const context = audioContextRef.current ?? new AudioContext();
         await context.resume();
@@ -344,7 +365,7 @@ export default function Planner() {
       notifications.show({
         title: 'REMINDERS ENABLED',
         message: permission === 'granted'
-          ? 'Approved events can send browser alerts while CANOPY stays open.'
+          ? 'Device alerts are ready in this browser while CANOPY stays open.'
           : 'In-app reminders are active; browser alerts may need notification permission.',
       });
     } catch (error) {
@@ -480,10 +501,10 @@ export default function Planner() {
   }
 
   const reminderActionLabel = reminderPermission === 'granted'
-    ? soundUnlocked ? 'BROWSER ALERTS & SOUND READY' : 'UNLOCK ALARM SOUND'
+    ? soundUnlocked ? 'DEVICE ALERTS & SOUND READY' : 'UNLOCK ALARM SOUND'
     : reminderPermission === 'denied'
       ? soundUnlocked ? 'ALERTS BLOCKED · SOUND READY' : 'ALERTS BLOCKED · UNLOCK SOUND'
-      : soundUnlocked ? 'ENABLE BROWSER ALERTS' : 'ENABLE BROWSER ALERTS & SOUND';
+      : soundUnlocked ? 'ENABLE DEVICE ALERTS' : 'ENABLE DEVICE ALERTS & SOUND';
 
   return (
     <div className="content learning-page planner-page">
@@ -529,9 +550,9 @@ export default function Planner() {
         <section className="planner-panel">
           <div className="planner-panel-heading">
             <div><span className="card-kicker">REMINDERS & ALARMS</span><h2>Your approved schedule</h2></div>
-            <span className={`permission-chip ${storageReady ? 'ready' : ''}`}>{storageReady ? 'AUTO-SYNC ON' : 'LOADING'}</span>
+            <span className={`permission-chip ${storageReady ? 'ready' : ''}`}>{storageReady ? 'SAVED ON THIS DEVICE' : 'LOADING'}</span>
           </div>
-          <p className="planner-helper">Reminders automatically follow approved events. Online classes alert 3 minutes before; other events use their listed lead time. Keep CANOPY open for in-app alarms. Enable browser permission for desktop alerts; sound may need unlocking again after reopening CANOPY.</p>
+          <p className="planner-helper">Reminders follow approved events. Online classes alert 3 minutes before; other events use their listed lead time. Allow device notifications for this laptop or phone, and keep CANOPY open on that device so it can time the alarm. On iPhone, add CANOPY to your Home Screen first, then enable notifications. Alerts do not fire after the browser or app is fully closed.</p>
           <div className="reminder-actions">
             <Button className="form-button" onClick={enableReminders} type="button">{reminderActionLabel}</Button>
             <label className="alarm-toggle"><input checked={soundEnabled} onChange={(event) => setSoundEnabled(event.currentTarget.checked)} type="checkbox" /> Sound alarm</label>

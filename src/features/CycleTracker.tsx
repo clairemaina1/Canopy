@@ -107,6 +107,12 @@ export default function CycleTracker() {
     ? Math.round(recentIntervals.reduce((sum, days) => sum + days, 0) / recentIntervals.length)
     : data.cycleLength;
   const nextStart = lastStart ? shiftDate(lastStart, predictedCycleLength) : null;
+  const forecasts = lastStart
+    ? Array.from({ length: 5 }, (_, index) => {
+      const start = shiftDate(lastStart, predictedCycleLength * (index + 1));
+      return { start, end: shiftDate(start, data.periodLength - 1) };
+    })
+    : [];
   const elapsedDays = lastStart
     ? Math.floor((dateNumber(todayKey()) - dateNumber(lastStart)) / 86_400_000)
     : null;
@@ -193,6 +199,26 @@ export default function CycleTracker() {
           <small className="cycle-predictor-note">After at least two logged starts, the prediction uses the average of up to six recent cycle gaps.</small>
         </div>
       </div>
+      <section aria-labelledby="cycle-forecast-title" className="cycle-forecast">
+        <header className="cycle-forecast-heading">
+          <div><span className="card-kicker">NEXT FIVE CYCLES</span><h3 id="cycle-forecast-title">A rolling outlook</h3></div>
+          <span className="cycle-forecast-refresh">RECALCULATES AS YOU LOG</span>
+        </header>
+        {forecasts.length ? (
+          <ol className="cycle-forecast-grid">
+            {forecasts.map((forecast, index) => (
+              <li className={`cycle-forecast-card${index === 0 ? ' next' : ''}`} key={forecast.start}>
+                <span>CYCLE {index + 1}</span>
+                <strong>{formatDate(forecast.start)}</strong>
+                <small>{data.periodLength} day{data.periodLength === 1 ? '' : 's'} · through {formatDate(forecast.end)}</small>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="cycle-forecast-empty">Log a period start to begin your five-cycle outlook. Each new start will update the dates using your recent cycle history.</p>
+        )}
+        <p className="cycle-forecast-method">Uses the average of up to six recent cycle gaps; before you have a gap to average, it uses your typical cycle-length setting.</p>
+      </section>
       <div className="cycle-history-heading"><span className="card-kicker">RECENT START DATES</span><button className="text-button" disabled={!starts.length} onClick={clearHistory} type="button">CLEAR HISTORY</button></div>
       {starts.length ? (
         <div className="cycle-history">{starts.slice(-6).reverse().map((start) => <span key={start}>{formatDate(start)}</span>)}</div>

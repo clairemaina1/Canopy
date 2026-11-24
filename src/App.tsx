@@ -156,7 +156,7 @@ function App() {
         {visitedPages.has('Code Lab') && <div hidden={activePage !== 'Code Lab'}><CodeRoadmap /></div>}
         {visitedPages.has('Flight School') && <div hidden={activePage !== 'Flight School'}><FlightSchool /></div>}
         {visitedPages.has('Basketball') && <div hidden={activePage !== 'Basketball'}><BasketballPath /></div>}
-        {visitedPages.has('Gym') && <div hidden={activePage !== 'Gym'}><GymPlanner /></div>}
+        {visitedPages.has('Gym') && <div hidden={activePage !== 'Gym'}><GymPlanner isActive={activePage === 'Gym'} /></div>}
         {visitedPages.has('Food Log') && <div hidden={activePage !== 'Food Log'}><FoodLog /></div>}
         {activePage === 'Wellbeing' && (
           <WellbeingPage selectedMood={selectedMood} setSelectedMood={setSelectedMood} />

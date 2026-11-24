@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Progress } from '@mantine/core';
 
 type Exercise = {
@@ -49,10 +49,18 @@ const routine: Array<{ day: string; focus: string; note: string; exercises: Exer
   },
 ];
 
-export default function GymPlanner() {
+export default function GymPlanner({ isActive }: { isActive: boolean }) {
   const [dayIndex, setDayIndex] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const currentDay = routine[dayIndex];
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = (event: MediaQueryListEvent) => setPrefersReducedMotion(event.matches);
+    mediaQuery.addEventListener('change', updateMotionPreference);
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference);
+  }, []);
   const completedCount = currentDay.exercises.filter((exercise) => completed.includes(`${currentDay.day}:${exercise.id}`)).length;
 
   function toggleExercise(id: string) {
@@ -86,7 +94,7 @@ export default function GymPlanner() {
           const checked = completed.includes(`${currentDay.day}:${exercise.id}`);
           return (
             <article className={`exercise-card${checked ? ' complete' : ''}`} key={exercise.id}>
-              <ExercisePreview exercise={exercise} />
+              <ExercisePreview exercise={exercise} isActive={isActive} prefersReducedMotion={prefersReducedMotion} />
               <div className="exercise-copy">
                 <span className="card-kicker">{exercise.area} · {exercise.sets.toUpperCase()}</span>
                 <h2>{exercise.name}</h2>
@@ -107,22 +115,62 @@ export default function GymPlanner() {
   );
 }
 
-function ExercisePreview({ exercise }: { exercise: Exercise }) {
+function ExercisePreview({ exercise, isActive, prefersReducedMotion }: { exercise: Exercise; isActive: boolean; prefersReducedMotion: boolean }) {
+  const previewRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
   const poses = exercisePoses[exercise.animation] ?? ['stand', 'squat'];
   const pose = poses[phase];
+  const autoPlaying = isActive && isVisible && isPlaying && !prefersReducedMotion;
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return undefined;
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.3 });
+    observer.observe(preview);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!autoPlaying) return undefined;
+    const intervalId = window.setInterval(() => setPhase((current) => current === 0 ? 1 : 0), 2200);
+    return () => window.clearInterval(intervalId);
+  }, [autoPlaying]);
+
+  function stepPhase() {
+    if (autoPlaying) setIsPlaying(false);
+    setPhase((current) => current === 0 ? 1 : 0);
+  }
+
   return (
-    <div className="exercise-preview">
-      <svg aria-label={`${exercise.name} ${phase === 0 ? 'start position' : 'controlled movement'} diagram`} className="exercise-guide-svg" role="img" viewBox="0 0 280 150">
-        <path className="exercise-guide-floor" d="M12 128H268" />
-        <PoseFigure pose={pose} x={140} />
-        <text className="exercise-guide-label" textAnchor="middle" x="140" y="144">{phase === 0 ? 'START POSITION' : 'CONTROLLED MOVEMENT'}</text>
+    <div ref={previewRef} className={`exercise-preview${autoPlaying ? ' is-playing' : ''}`} data-exercise={exercise.id} data-phase={phase === 0 ? 'start' : 'movement'}>
+      <div aria-hidden="true" className="exercise-guide-meta">
+        <span className="exercise-guide-badge"><i />{autoPlaying ? 'AUTO DEMO' : 'MOVEMENT GUIDE'}</span>
+        <span className="exercise-guide-count">0{phase + 1}<span>/ 02</span></span>
+      </div>
+      <svg aria-label={`${exercise.name}: ${phase === 0 ? 'start position' : 'controlled movement position'}`} className="exercise-guide-svg" role="img" viewBox="36 10 208 126">
+        <circle className="exercise-guide-orbit" cx="140" cy="82" r="54" />
+        <path className="exercise-guide-floor" d="M38 128H242" />
+        {phase === 1 && <path className="exercise-motion-path" d={exerciseMotionPaths[exercise.id]} markerEnd={`url(#guide-arrow-${exercise.id})`} />}
+        <defs>
+          <marker id={`guide-arrow-${exercise.id}`} markerHeight="8" markerUnits="strokeWidth" markerWidth="8" orient="auto" refX="7" refY="4" viewBox="0 0 8 8">
+            <path className="exercise-motion-arrowhead" d="M1 1L7 4L1 7" />
+          </marker>
+        </defs>
+        <PoseFigure key={pose} pose={pose} x={140} />
       </svg>
       <div className="exercise-guide-controls">
-        <span>STEP {phase + 1} OF 2 · MOVE AT YOUR OWN PACE</span>
-        <button aria-label={`Show ${phase === 0 ? 'movement' : 'start'} position for ${exercise.name}`} onClick={() => setPhase((value) => value === 0 ? 1 : 0)} type="button">
-          {phase === 0 ? 'SHOW MOVEMENT →' : '← SHOW START'}
-        </button>
+        <div aria-hidden="true" className="exercise-guide-progress"><span /></div>
+        <div className="exercise-guide-status"><span>STEP {phase + 1} OF 2</span><span>{prefersReducedMotion ? 'MANUAL GUIDE' : autoPlaying ? 'LOOPING DEMO' : 'PAUSED'}</span></div>
+        <div className="exercise-guide-actions">
+          <button aria-label={`Show ${phase === 0 ? 'movement' : 'start'} position for ${exercise.name}`} className="exercise-guide-step" onClick={stepPhase} type="button">
+            {phase === 0 ? 'SHOW MOVEMENT' : 'BACK TO START'}
+          </button>
+          <button aria-label={prefersReducedMotion ? 'Automatic movement is disabled by your reduced motion setting' : `${autoPlaying ? 'Pause' : 'Play'} movement demo for ${exercise.name}`} disabled={prefersReducedMotion} onClick={() => setIsPlaying((current) => !current)} type="button">
+            {prefersReducedMotion ? 'MOTION OFF' : autoPlaying ? 'PAUSE' : 'PLAY'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -148,6 +196,23 @@ const exercisePoses: Record<string, [PoseName, PoseName]> = {
   'calf-raise': ['calf-flat', 'calf-up'],
   'standing-hip-hinge': ['stand', 'hinge'],
   'bird-dog': ['all-fours', 'bird-dog'],
+};
+
+const exerciseMotionPaths: Record<string, string> = {
+  'wall-pushup': 'M177 69C188 64 198 64 209 68',
+  'backpack-row': 'M184 76C173 68 164 65 153 64',
+  'prone-w-raise': 'M119 78C108 70 107 60 114 51',
+  'bottle-curl': 'M149 94C157 84 158 73 152 64',
+  'step-jack': 'M161 85Q179 76 196 57',
+  'side-step': 'M163 97C177 94 187 95 199 98',
+  'dead-bug': 'M168 92C181 83 192 78 204 75',
+  'side-plank': 'M176 88C188 77 195 68 198 58',
+  'chair-squat': 'M181 64C188 75 187 86 180 96',
+  'supported-split-squat': 'M178 67C187 79 186 89 181 99',
+  'glute-bridge': 'M169 103Q186 85 201 95',
+  'calf-raise': 'M164 82C168 73 167 64 163 55',
+  'standing-hip-hinge': 'M177 67Q193 68 204 79',
+  'bird-dog': 'M164 64C181 59 196 53 208 50',
 };
 
 const poseArt: Record<PoseName, { head: [number, number]; torso: string; arms: [string, string]; legs: [string, string] }> = {
@@ -181,16 +246,18 @@ function PoseFigure({ pose, x }: { pose: PoseName; x: number }) {
   const art = poseArt[pose];
   return (
     <g className="exercise-figure" transform={`translate(${x} 126)`}>
-      {pose === 'wall-pushup' || pose === 'wall-press' ? <path className="exercise-prop" d="M20 -85V-18H32" /> : null}
-      {pose === 'squat' ? <path className="exercise-prop" d="M19 -36V-2M19 -36H42V-2" /> : null}
-      {pose === 'row' ? <rect className="exercise-prop" height="13" rx="3" width="17" x="23" y="-35" /> : null}
-      {pose === 'curl-up' || pose === 'curl-down' ? <rect className="exercise-prop bottle" height="11" rx="4" width="6" x="7" y={pose === 'curl-up' ? '-53' : '-34'} /> : null}
-      <path className="exercise-limb exercise-legs" d={art.legs[0]} />
-      <path className="exercise-limb exercise-legs" d={art.legs[1]} />
-      <path className="exercise-limb exercise-arms" d={art.arms[0]} />
-      <path className="exercise-limb exercise-arms" d={art.arms[1]} />
-      <path className="exercise-torso" d={art.torso} />
-      <circle className="exercise-head" cx={art.head[0]} cy={art.head[1]} r="8" />
+      <g className="exercise-figure-pose" data-pose={pose}>
+        {pose === 'wall-pushup' || pose === 'wall-press' ? <path className="exercise-prop" d="M20 -85V-18H32" /> : null}
+        {pose === 'squat' ? <path className="exercise-prop" d="M19 -36V-2M19 -36H42V-2" /> : null}
+        {pose === 'row' ? <rect className="exercise-prop" height="13" rx="3" width="17" x="23" y="-35" /> : null}
+        {pose === 'curl-up' || pose === 'curl-down' ? <rect className="exercise-prop bottle" height="11" rx="4" width="6" x="7" y={pose === 'curl-up' ? '-53' : '-34'} /> : null}
+        <path className="exercise-limb exercise-legs" d={art.legs[0]} />
+        <path className="exercise-limb exercise-legs" d={art.legs[1]} />
+        <path className="exercise-limb exercise-arms" d={art.arms[0]} />
+        <path className="exercise-limb exercise-arms" d={art.arms[1]} />
+        <path className="exercise-torso" d={art.torso} />
+        <circle className="exercise-head" cx={art.head[0]} cy={art.head[1]} r="8" />
+      </g>
     </g>
   );
 }
